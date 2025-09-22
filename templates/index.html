@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Salary Prediction App</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="container py-4">
+
+    <h1 class="mb-4">Salary Prediction (Log Values)</h1>
+    <p>Predict salary (log-transformed) for a single employee or upload a CSV file for batch predictions.</p>
+
+    <!-- Error message -->
+    {% if error_msg %}
+    <div class="alert alert-danger">{{ error_msg }}</div>
+    {% endif %}
+
+    <!-- Single prediction -->
+    <div class="card mb-4">
+        <div class="card-header">Single Prediction</div>
+        <div class="card-body">
+            <form method="POST">
+                <!-- Region -->
+                <div class="mb-3">
+                    <label for="Region_Located" class="form-label">Region Located</label>
+                    <select name="Region_Located" class="form-select" required>
+                        <option value="">-- Select Region --</option>
+                        {% for r in region_options %}
+                        <option value="{{ r }}">{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Job Industry -->
+                <div class="mb-3">
+                    <label for="Job_Industry" class="form-label">Job Industry</label>
+                    <select name="Job_Industry" class="form-select" required>
+                        <option value="">-- Select Industry --</option>
+                        {% for j in job_industry_options %}
+                        <option value="{{ j }}">{{ j }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Work Mode -->
+                <div class="mb-3">
+                    <label for="Work_Mode" class="form-label">Work Mode</label>
+                    <select name="Work_Mode" class="form-select" required>
+                        <option value="">-- Select Mode --</option>
+                        {% for m in work_mode_options %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Department (dynamic) -->
+                <div class="mb-3">
+                    <label for="Department" class="form-label">Department</label>
+                    <select name="Department" class="form-select" required>
+                        <option value="">-- Select Department --</option>
+                        {% for d in department_options %}
+                        <option value="{{ d }}">{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Experience -->
+                <div class="mb-3">
+                    <label for="Experience_Years" class="form-label">Experience (Years)</label>
+                    <input type="number" step="1" min="0" name="Experience_Years" class="form-control" required>
+                </div>
+
+                <!-- Performance -->
+                <div class="mb-3">
+                    <label for="Performance_Rating" class="form-label">Performance Rating</label>
+                    <input type="number" step="1" min="1" max="5" name="Performance_Rating" class="form-control" required>
+                </div>
+
+                <button type="submit" name="predict_single" class="btn btn-primary">Predict</button>
+            </form>
+
+            {% if prediction is not none %}
+            <div class="alert alert-success mt-3">
+                <span>
+                    <strong>Predicted Log Salary: INR</strong> {{ prediction | round(2) }}
+                    <strong> per annum</strong>
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Batch prediction -->
+    <div class="card">
+        <div class="card-header">Batch Prediction (CSV Upload)</div>
+        <div class="card-body">
+            <form action="/batch_predict" method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="file" class="form-label">Upload CSV</label>
+                    <input type="file" name="file" class="form-control" accept=".csv" required>
+                </div>
+                <button type="submit" class="btn btn-success">Upload & Predict</button>
+            </form>
+            <p class="mt-3 text-muted">
+                CSV must contain columns: <br>
+                <code>Region_Located, Job_Industry, Work_Mode, Department, Experience_Years, Performance_Rating</code>
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>
