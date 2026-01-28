@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import io
 
-# sklearn pieces we will inspect to try to extract categories
+# sklearn pieces we will inspect to try to extract categories FROM DATA
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import Pipeline
 
