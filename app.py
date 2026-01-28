@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, send_file
 import pickle
 import numpy as np
 import pandas as pd
-import io, os
+import io
 
 # sklearn pieces we will inspect to try to extract categories
 from sklearn.preprocessing import OneHotEncoder
@@ -164,40 +164,43 @@ def batch_predict():
     global last_output, last_df_summary
 
     file = request.files.get("file")
-    if not file:
-        return render_home(prediction=None, error_msg="No file uploaded. Please choose a CSV file.")
+    if not file or file.filename == '':
+        return render_home(prediction=None, error_msg="No file selected or uploaded. Please choose a CSV file.")
 
     try:
+        # Read with specific encoding to handle potential special chars
         df = pd.read_csv(file)
-    except Exception:
-        return render_home(prediction=None, error_msg="Unable to read CSV file. Ensure it's a valid CSV.")
+    except Exception as e:
+        return render_home(prediction=None, error_msg=f"Unable to read CSV file: {str(e)}")
 
     required_cols = ["Region_Located", "Job_Industry", "Work_Mode", "Department", "Experience_Years", "Performance_Rating"]
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
-        return render_home(prediction=None, error_msg=f"CSV missing columns: {', '.join(missing)}. Required: {', '.join(required_cols)}")
+        return render_home(prediction=None, error_msg=f"CSV missing columns: {', '.join(missing)}")
 
     # Ensure numeric columns are integers within expected range
     try:
-        df["Experience_Years"] = pd.to_numeric(df["Experience_Years"]).astype(int)
-        df["Performance_Rating"] = pd.to_numeric(df["Performance_Rating"]).astype(int)
-    except Exception:
-        return render_home(prediction=None, error_msg="Experience_Years and Performance_Rating must be numeric integers in the CSV.")
+        df["Experience_Years"] = pd.to_numeric(df["Experience_Years"]).fillna(0).astype(int)
+        df["Performance_Rating"] = pd.to_numeric(df["Performance_Rating"]).fillna(1).astype(int)
+    except Exception as e:
+        return render_home(prediction=None, error_msg=f"Numeric format error in CSV: {str(e)}")
 
-    # Validate ranges (optionally you can drop or flag invalid rows; here we reject)
-    if df["Experience_Years"].lt(0).any() or df["Experience_Years"].gt(15).any():
-        return render_home(prediction=None, error_msg="All Experience_Years values must be between 0 and 15.")
+    # Validate ranges
+    if df["Experience_Years"].lt(0).any():
+        return render_home(prediction=None, error_msg="Experience_Years cannot be negative.")
     if df["Performance_Rating"].lt(1).any() or df["Performance_Rating"].gt(5).any():
-        return render_home(prediction=None, error_msg="All Performance_Rating values must be between 1 and 5.")
+        return render_home(prediction=None, error_msg="Performance_Rating must be between 1 and 5.")
 
     # Predictions
     try:
         X_transformed = preprocessor.transform(df[required_cols])
-        preds = ridge_model.predict(X_transformed)  # log salaries
+        preds_log = ridge_model.predict(X_transformed)
+        # CONVERT TO INR (exponentiate) to match single prediction logic
+        preds_inr = np.e**preds_log
     except Exception as e:
         return render_home(prediction=None, error_msg=f"Prediction error: {str(e)}")
 
-    df["Predicted_Log_Salary"] = preds
+    df["Predicted_Salary_INR"] = np.round(preds_inr, 2)
 
     # Save CSV in memory for download
     output = io.BytesIO()
@@ -207,8 +210,8 @@ def batch_predict():
 
     # Summary
     total_rows = len(df)
-    mean_pred = float(df["Predicted_Log_Salary"].mean()) if total_rows > 0 else 0.0
-    sum_pred = float(df["Predicted_Log_Salary"].sum()) if total_rows > 0 else 0.0
+    mean_pred = float(df["Predicted_Salary_INR"].mean()) if total_rows > 0 else 0.0
+    sum_pred = float(df["Predicted_Salary_INR"].sum()) if total_rows > 0 else 0.0
     last_df_summary = {"rows": total_rows, "mean": mean_pred, "sum": sum_pred}
 
     # Convert DF to HTML (Bootstrap)
@@ -231,4 +234,4 @@ def download_csv():
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True)
